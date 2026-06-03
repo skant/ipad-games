@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#ff9ed2" />
+    <title>Pony Rainbow Rescue</title>
+    <link rel="stylesheet" href="../css/common.css" />
+    <style>
+      body {
+        /* Soft candy sky behind the canvas. */
+        background: linear-gradient(180deg, #ffd6f0 0%, #d9e7ff 100%);
+      }
+      .app-bar {
+        background: rgba(255, 255, 255, 0.35);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+        color: #5a2a6b;
+      }
+      .app-bar h1 {
+        font-size: 1.15rem;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+      }
+      .app-bar .stat {
+        color: #7a4a8c;
+      }
+      .app-bar .stat b {
+        color: #3a1147;
+      }
+      .stage {
+        padding: 0;
+      }
+      #game {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none; /* we handle all touches ourselves */
+      }
+
+      /* ----- Rainbow Power button (bottom center) ----- */
+      .power-wrap {
+        position: absolute;
+        left: 50%;
+        bottom: calc(16px + var(--safe-bottom));
+        transform: translateX(-50%);
+        z-index: 20;
+        width: min(78%, 460px);
+        pointer-events: none;
+      }
+      .power-btn {
+        pointer-events: auto;
+        position: relative;
+        width: 100%;
+        height: 62px;
+        border: none;
+        border-radius: 999px;
+        font: inherit;
+        font-weight: 800;
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
+        color: #fff;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+        background: rgba(120, 120, 140, 0.45);
+        overflow: hidden;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        transition: transform 0.1s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .power-btn .fill {
+        position: absolute;
+        inset: 0;
+        width: 0%;
+        background: linear-gradient(
+          90deg,
+          #ff5d6c,
+          #ffb24d,
+          #ffe24d,
+          #45d97a,
+          #4dd2ff,
+          #6c7bff,
+          #c46cff
+        );
+        transition: width 0.18s ease;
+      }
+      .power-btn .label {
+        position: relative;
+        z-index: 1;
+      }
+      .power-btn.ready {
+        animation: pulse 0.8s ease-in-out infinite;
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.6),
+          0 10px 30px rgba(196, 108, 255, 0.6);
+      }
+      .power-btn.ready:active {
+        transform: scale(0.95);
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+      .power-btn.nudge {
+        animation: nudge 0.4s ease;
+      }
+      @keyframes nudge {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-8px) rotate(-1deg); }
+        40% { transform: translateX(8px) rotate(1deg); }
+        60% { transform: translateX(-6px); }
+        80% { transform: translateX(6px); }
+      }
+
+      /* Friendly, kid-sized overlay text */
+      .overlay {
+        background: rgba(90, 42, 107, 0.78);
+      }
+      .overlay h2 {
+        font-size: 2.4rem;
+      }
+      #emojiRow {
+        font-size: 3rem;
+        letter-spacing: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-bar">
+      <button class="btn icon ghost" id="homeBtn" aria-label="Home">⬅︎</button>
+      <h1>🌈 Pony Rainbow Rescue</h1>
+      <div class="spacer"></div>
+      <div class="stat">Level <b id="level">1</b></div>
+      <div class="stat">Saved <b id="score">0</b>/<span id="goal">8</span></div>
+      <div class="stat" id="hearts">❤️❤️❤️</div>
+    </header>
+
+    <main class="stage">
+      <canvas id="game"></canvas>
+
+      <div class="power-wrap">
+        <button class="power-btn" id="powerBtn">
+          <span class="fill" id="powerFill"></span>
+          <span class="label" id="powerLabel">🌈 Charge your rainbow!</span>
+        </button>
+      </div>
+
+      <div class="overlay" id="overlay">
+        <div id="emojiRow">🦄🏰🐉</div>
+        <h2 id="overlayTitle">Pony Rainbow Rescue</h2>
+        <p id="overlayText">
+          The ponies were getting dressed in their castle… then they heard a
+          DRAGON! Tap the dragons to zap them with rainbow power. Fill the
+          rainbow bar and tap it for a SUPER blast. Clear all 7 levels — the
+          dragons get faster each time — to win!
+        </p>
+        <button class="btn primary" id="startBtn">Play</button>
+      </div>
+    </main>
+
+    <script src="../js/common.js"></script>
+    <script>
+      // Surface any uncaught error on-screen (iPads have no dev console).
+      window.addEventListener("error", (e) => {
+        let bar = document.getElementById("errbar");
+        if (!bar) {
+          bar = document.createElement("div");
+          bar.id = "errbar";
+          bar.style.cssText =
+            "position:fixed;left:0;right:0;top:0;z-index:999;background:#b00020;color:#fff;font:14px -apple-system,sans-serif;padding:10px 14px;white-space:pre-wrap;word-break:break-word;";
+          document.body.appendChild(bar);
+        }
+        bar.textContent =
+          "⚠️ " + (e.message || "error") +
+          (e.filename ? "\n" + e.filename + ":" + e.lineno : "");
+      });
+
+      const GAME_ID = "pony-rainbow";
+
+      // 7 levels: dragons get faster and spawn more often each level.
+      // Speeds are ~10% higher than the original tuning; levels 6-7 continue the curve.
+      // quota = how many dragons you must save to clear the level.
+      const LEVELS = [
+        { speed: 66, gap: 1000, quota: 8 },
+        { speed: 101, gap: 840, quota: 10 },
+        { speed: 141, gap: 704, quota: 12 },
+        { speed: 185, gap: 592, quota: 14 },
+        { speed: 237, gap: 496, quota: 16 },
+        { speed: 297, gap: 416, quota: 18 },
+        { speed: 369, gap: 352, quota: 20 },
+      ];
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const els = {
+        level: document.getElementById("level"),
+        score: document.getElementById("score"),
+        goal: document.getElementById("goal"),
+        hearts: document.getElementById("hearts"),
+        overlay: document.getElementById("overlay"),
+        overlayTitle: document.getElementById("overlayTitle"),
+        overlayText: document.getElementById("overlayText"),
+        emojiRow: document.getElementById("emojiRow"),
+        startBtn: document.getElementById("startBtn"),
+        homeBtn: document.getElementById("homeBtn"),
+        powerBtn: document.getElementById("powerBtn"),
+        powerFill: document.getElementById("powerFill"),
+        powerLabel: document.getElementById("powerLabel"),
+      };
+
+      // ---- Canvas sizing (handle Retina) ----
+      let W = 0, H = 0, dpr = 1;
+      function resize() {
+        const r = canvas.getBoundingClientRect();
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = r.width;
+        H = r.height;
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      window.addEventListener("resize", resize);
+
+      // ---- Game state ----
+      const RAINBOW = ["#ff5d6c", "#ffb24d", "#ffe24d", "#45d97a", "#4dd2ff", "#6c7bff", "#c46cff"];
+      const TREASURES = ["👑", "💎", "⭐", "🌟", "🦄", "🌈", "🍭", "🎀"];
+      const PONIES = ["🦄", "🐴", "🦄"];
+
+      // Initialized empty so the render loop is safe before the player taps Play.
+      let dragons = [], particles = [], beams = [], treasures = [], clouds = [], tears = [];
+      let score = 0, hearts = 3, charge = 0, running = false;
+      let shake = 0, lastSpawn = 0, bgHue = 0;
+      let level = 1, savedThisLevel = 0, pendingLevel = 0;
+      let crying = false, loseTimer = null;
+      let castle = { x: 0, y: 0 };
+
+      function levelCfg() {
+        return LEVELS[Math.min(level, LEVELS.length) - 1];
+      }
+
+      function makeClouds() {
+        const c = [];
+        for (let i = 0; i < 5; i++) {
+          c.push({
+            x: Math.random() * W,
+            y: 40 + Math.random() * (H * 0.45),
+            s: 0.6 + Math.random() * 0.9,
+            v: 6 + Math.random() * 10,
+          });
+        }
+        return c;
+      }
+
+      function updateHud() {
+        els.level.textContent = level;
+        els.score.textContent = savedThisLevel;
+        els.goal.textContent = levelCfg().quota;
+        els.hearts.textContent = "❤️".repeat(hearts) + "🖤".repeat(3 - hearts);
+      }
+
+      let hintTimer = null;
+      function updateCharge() {
+        const pct = Math.round(Math.min(100, charge));
+        els.powerFill.style.width = pct + "%";
+        if (pct >= 100) {
+          els.powerBtn.classList.add("ready");
+          els.powerLabel.textContent = "🌈 TAP FOR SUPER BLAST!";
+        } else {
+          els.powerBtn.classList.remove("ready");
+          els.powerLabel.textContent = `🌈 Rainbow Power ${pct}%`;
+        }
+      }
+
+      // Tapping the bar: blast if full, otherwise nudge + hint so it never feels dead.
+      function onPowerTap() {
+        if (!running) return;
+        if (charge >= 100) {
+          rainbowBlast();
+        } else {
+          Arcade.buzz(8);
+          els.powerBtn.classList.remove("nudge");
+          void els.powerBtn.offsetWidth; // restart the animation
+          els.powerBtn.classList.add("nudge");
+          els.powerLabel.textContent = "Tap the dragons to fill it! 🐉";
+          clearTimeout(hintTimer);
+          hintTimer = setTimeout(updateCharge, 1200);
+        }
+      }
+
+      // ---- Spawning ----
+      function spawnDragon() {
+        const margin = 50;
+        const x = margin + Math.random() * (W - margin * 2);
+        const r = 38 + Math.random() * 12;
+        const base = levelCfg().speed;
+        const speed = base + Math.random() * base * 0.25; // px/sec, set by level
+        const ang = Math.atan2(castle.y - -40, castle.x - x);
+        dragons.push({
+          x,
+          y: -40,
+          r,
+          vx: Math.cos(ang) * speed,
+          vy: Math.abs(Math.sin(ang) * speed) + speed * 0.5,
+          wob: Math.random() * Math.PI * 2,
+          // Chunky dragon face reads best at small sizes; sometimes the long dragon.
+          face: Math.random() < 0.7 ? "🐲" : "🐉",
+        });
+      }
+
+      // ---- Effects ----
+      function sparkle(x, y, n, big) {
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = (big ? 120 : 60) * (0.4 + Math.random());
+          particles.push({
+            x, y,
+            vx: Math.cos(a) * sp,
+            vy: Math.sin(a) * sp,
+            life: 0.6 + Math.random() * 0.4,
+            t: 0,
+            r: (big ? 5 : 3) + Math.random() * 3,
+            color: RAINBOW[(Math.random() * RAINBOW.length) | 0],
+          });
+        }
+      }
+
+      function flingTreasure(x, y) {
+        treasures.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 40,
+          vy: -90 - Math.random() * 60,
+          life: 1.1,
+          t: 0,
+          emoji: TREASURES[(Math.random() * TREASURES.length) | 0],
+          spin: (Math.random() - 0.5) * 6,
+          rot: 0,
+        });
+      }
+
+      // Teardrops for the crying ponies after a loss.
+      function spawnTear(x, y) {
+        tears.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 24,
+          vy: 50 + Math.random() * 70,
+          life: 1.5,
+          t: 0,
+          r: 7 + Math.random() * 5,
+        });
+      }
+
+      function drawTears(dt) {
+        for (let i = tears.length - 1; i >= 0; i--) {
+          const tr = tears[i];
+          tr.t += dt;
+          if (tr.t >= tr.life) {
+            tears.splice(i, 1);
+            continue;
+          }
+          tr.x += tr.vx * dt;
+          tr.y += tr.vy * dt;
+          tr.vy += 140 * dt;
+          ctx.globalAlpha = Math.max(0, 1 - tr.t / tr.life);
+          // Little blue droplet with a highlight so it reads as a tear.
+          ctx.fillStyle = "#56c6ff";
+          ctx.beginPath();
+          ctx.arc(tr.x, tr.y, tr.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,0.75)";
+          ctx.beginPath();
+          ctx.arc(tr.x - tr.r * 0.3, tr.y - tr.r * 0.3, tr.r * 0.35, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function zapDragon(d) {
+        beams.push({ x: d.x, y: d.y, life: 0.28, t: 0 });
+        sparkle(d.x, d.y, 16, false);
+        flingTreasure(d.x, d.y);
+        dragons.splice(dragons.indexOf(d), 1);
+        score++;
+        savedThisLevel++;
+        charge = Math.min(100, charge + 14);
+        Arcade.buzz(12);
+        updateHud();
+        updateCharge();
+        if (savedThisLevel >= levelCfg().quota) levelComplete();
+      }
+
+      function rainbowBlast() {
+        if (charge < 100 || !running) return;
+        Arcade.buzz(40);
+        // Big celebratory clear of everything on screen.
+        for (const d of dragons.slice()) {
+          sparkle(d.x, d.y, 14, true);
+          flingTreasure(d.x, d.y);
+          score++;
+          savedThisLevel++;
+        }
+        dragons = [];
+        sparkle(castle.x, castle.y - 60, 60, true);
+        charge = 0;
+        updateHud();
+        updateCharge();
+        if (savedThisLevel >= levelCfg().quota) levelComplete();
+      }
+
+      function loseHeart() {
+        hearts--;
+        shake = 12;
+        Arcade.buzz(60);
+        updateHud();
+        if (hearts <= 0) loseGame();
+      }
+
+      // ---- Input: tap dragons (multi-touch friendly) ----
+      function hitAt(px, py) {
+        if (!running) return;
+        let best = null, bestD = 1e9;
+        for (const d of dragons) {
+          const dx = d.x - px, dy = d.y - py;
+          const dist = Math.hypot(dx, dy);
+          if (dist < d.r + 26 && dist < bestD) {
+            best = d;
+            bestD = dist;
+          }
+        }
+        if (best) zapDragon(best);
+        else sparkle(px, py, 4, false); // little sparkle even on a miss
+      }
+
+      function canvasPoint(clientX, clientY) {
+        const r = canvas.getBoundingClientRect();
+        return [clientX - r.left, clientY - r.top];
+      }
+
+      canvas.addEventListener(
+        "touchstart",
+        (e) => {
+          e.preventDefault();
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            const [x, y] = canvasPoint(t.clientX, t.clientY);
+            hitAt(x, y);
+          }
+        },
+        { passive: false }
+      );
+      canvas.addEventListener("mousedown", (e) => {
+        const [x, y] = canvasPoint(e.clientX, e.clientY);
+        hitAt(x, y);
+      });
+
+      Arcade.onTap(els.powerBtn, onPowerTap);
+
+      // ---- Drawing ----
+      function drawBackground(dt, now) {
+        bgHue = (bgHue + dt * 8) % 360;
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, `hsl(${(bgHue) % 360}, 90%, 84%)`);
+        g.addColorStop(0.5, `hsl(${(bgHue + 40) % 360}, 90%, 88%)`);
+        g.addColorStop(1, `hsl(${(bgHue + 90) % 360}, 85%, 90%)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+
+        // Big soft rainbow arc across the sky
+        const cx = W / 2, cy = H * 0.95, base = Math.min(W, H) * 0.55;
+        ctx.lineWidth = 14;
+        for (let i = 0; i < RAINBOW.length; i++) {
+          ctx.strokeStyle = RAINBOW[i];
+          ctx.globalAlpha = 0.35;
+          ctx.beginPath();
+          ctx.arc(cx, cy, base + i * 16, Math.PI, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // Drifting clouds
+        ctx.font = '44px "Apple Color Emoji", serif';
+        ctx.fillStyle = "#000"; // solid fill so iOS renders emoji in full color
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (const c of clouds) {
+          c.x += c.v * dt;
+          if (c.x - 60 > W) c.x = -60;
+          ctx.globalAlpha = 0.85;
+          ctx.save();
+          ctx.translate(c.x, c.y);
+          ctx.scale(c.s, c.s);
+          ctx.fillText("☁️", 0, 0);
+          ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+
+        // Sad, rainy mood while the ponies are crying.
+        if (crying) {
+          ctx.fillStyle = "rgba(40, 50, 90, 0.3)";
+          ctx.fillRect(0, 0, W, H);
+        }
+      }
+
+      function drawCastle() {
+        const baseY = H - 16;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillStyle = "#000"; // solid fill so iOS renders emoji in full color
+        ctx.font = `${Math.min(W, H) * 0.22}px "Apple Color Emoji", serif`;
+        ctx.globalAlpha = 0.95;
+        ctx.fillText("🏰", castle.x, baseY + 6);
+        // Ponies lined up in front of the castle (the ones we protect)
+        const pf = Math.min(W, H) * 0.12;
+        const spread = pf * 1.05;
+        const now = performance.now();
+        PONIES.forEach((p, i) => {
+          const px = castle.x + (i - (PONIES.length - 1) / 2) * spread;
+          if (crying) {
+            // Sad droop + slow shaky bob, and a stream of tears from each eye.
+            ctx.font = `${pf}px "Apple Color Emoji", serif`;
+            const droop = pf * 0.1 + Math.sin(now / 500 + i) * 2;
+            ctx.fillText(p, px, baseY + droop);
+            // Sad face above the pony.
+            ctx.font = `${pf * 0.5}px "Apple Color Emoji", serif`;
+            ctx.fillText("😭", px, baseY - pf * 0.78 + droop);
+            if (Math.random() < 0.5) {
+              const side = Math.random() < 0.5 ? -1 : 1;
+              spawnTear(px + side * pf * 0.16, baseY - pf * 0.5 + droop);
+            }
+          } else {
+            ctx.font = `${pf}px "Apple Color Emoji", serif`;
+            const bob = Math.sin(now / 300 + i) * 4;
+            ctx.fillText(p, px, baseY + bob);
+          }
+        });
+        ctx.globalAlpha = 1;
+      }
+
+      function drawBeams(dt) {
+        for (let i = beams.length - 1; i >= 0; i--) {
+          const b = beams[i];
+          b.t += dt;
+          if (b.t >= b.life) {
+            beams.splice(i, 1);
+            continue;
+          }
+          const k = 1 - b.t / b.life;
+          const g = ctx.createLinearGradient(castle.x, castle.y - 60, b.x, b.y);
+          RAINBOW.forEach((c, j) =>
+            g.addColorStop(j / (RAINBOW.length - 1), c)
+          );
+          ctx.strokeStyle = g;
+          ctx.globalAlpha = k;
+          ctx.lineCap = "round";
+          ctx.lineWidth = 16 * k + 4;
+          ctx.beginPath();
+          ctx.moveTo(castle.x, castle.y - 60);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      function drawDragons(dt) {
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (let i = dragons.length - 1; i >= 0; i--) {
+          const d = dragons[i];
+          d.wob += dt * 4;
+          d.x += (d.vx + Math.cos(d.wob) * 24) * dt;
+          d.y += d.vy * dt;
+          // Reached the ponies?
+          if (d.y >= castle.y - 30) {
+            dragons.splice(i, 1);
+            sparkle(d.x, d.y, 10, false);
+            loseHeart();
+            continue;
+          }
+          // Bright "magic bubble" halo so the dragon pops on the pastel sky.
+          const halo = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r * 1.5);
+          halo.addColorStop(0, "rgba(255,255,255,0.9)");
+          halo.addColorStop(0.6, "rgba(255,255,255,0.45)");
+          halo.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.r * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          // IMPORTANT (iOS): reset to a SOLID fill before drawing the emoji.
+          // If the fill is a gradient/pattern, Safari draws color emoji as a
+          // gradient-filled silhouette instead of their real colors. Also never
+          // apply a canvas shadow to emoji (same silhouette effect).
+          ctx.fillStyle = "#000";
+          ctx.font = `${d.r * 2}px "Apple Color Emoji", serif`;
+          ctx.fillText(d.face, d.x, d.y);
+        }
+      }
+
+      function drawParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.t += dt;
+          if (p.t >= p.life) {
+            particles.splice(i, 1);
+            continue;
+          }
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 120 * dt;
+          ctx.globalAlpha = 1 - p.t / p.life;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawTreasures(dt) {
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (let i = treasures.length - 1; i >= 0; i--) {
+          const tr = treasures[i];
+          tr.t += dt;
+          if (tr.t >= tr.life) {
+            treasures.splice(i, 1);
+            continue;
+          }
+          tr.x += tr.vx * dt;
+          tr.y += tr.vy * dt;
+          tr.vy += 90 * dt;
+          tr.rot += tr.spin * dt;
+          ctx.globalAlpha = 1 - tr.t / tr.life;
+          ctx.save();
+          ctx.translate(tr.x, tr.y);
+          ctx.rotate(tr.rot);
+          ctx.fillStyle = "#000"; // solid fill so iOS renders emoji in full color
+          ctx.font = '38px "Apple Color Emoji", serif';
+          ctx.fillText(tr.emoji, 0, 0);
+          ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // ---- Main loop ----
+      let last = 0;
+      function frame(now) {
+        // Schedule the next frame FIRST so a single error can never kill the loop.
+        requestAnimationFrame(frame);
+        try {
+          const dt = Math.min(0.05, (now - last) / 1000) || 0;
+          last = now;
+
+          castle.x = W / 2;
+          castle.y = H - Math.min(W, H) * 0.1;
+
+          ctx.save();
+          if (shake > 0) {
+            ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+            shake = Math.max(0, shake - dt * 60);
+          }
+
+          drawBackground(dt, now);
+
+          if (running) {
+            lastSpawn += dt * 1000;
+            if (lastSpawn >= levelCfg().gap) {
+              lastSpawn = 0;
+              spawnDragon();
+            }
+          }
+
+          drawBeams(dt);
+          drawCastle();
+          drawDragons(running ? dt : 0);
+          drawTreasures(dt);
+          drawTears(dt);
+          drawParticles(dt);
+
+          ctx.restore();
+        } catch (err) {
+          // Never let one bad frame freeze the whole game.
+          try { ctx.restore(); } catch (_) {}
+        }
+      }
+
+      // ---- Game flow ----
+      // Fresh game from Level 1 (Play / Try again).
+      function startGame() {
+        resize();
+        score = 0;
+        charge = 0;
+        clouds = makeClouds();
+        startLevel(1);
+      }
+
+      // Begin a specific level. Hearts refill each level (kid-friendly).
+      function startLevel(n) {
+        level = n;
+        savedThisLevel = 0;
+        hearts = 3;
+        dragons = [];
+        beams = [];
+        treasures = [];
+        particles = [];
+        tears = [];
+        crying = false;
+        clearTimeout(loseTimer);
+        lastSpawn = 0;
+        shake = 0;
+        pendingLevel = 0;
+        running = true;
+        updateHud();
+        updateCharge();
+        els.overlay.classList.add("hidden");
+      }
+
+      function levelComplete() {
+        running = false;
+        Arcade.setHighScore(GAME_ID, score);
+        if (level >= LEVELS.length) {
+          winGame();
+          return;
+        }
+        dragons = [];
+        beams = [];
+        sparkle(W / 2, H / 2, 50, true);
+        pendingLevel = level + 1;
+        els.emojiRow.textContent = "🦄✨🌈";
+        els.overlayTitle.textContent = `Level ${level} Complete! 🎉`;
+        els.overlayText.textContent = `Great job! The next dragons are even faster. Ready for Level ${pendingLevel}?`;
+        els.startBtn.textContent = `Start Level ${pendingLevel}`;
+        els.overlay.classList.remove("hidden");
+      }
+
+      function winGame() {
+        running = false;
+        pendingLevel = 0;
+        Arcade.setHighScore(GAME_ID, score);
+        sparkle(W / 2, H / 2, 80, true);
+        els.emojiRow.textContent = "🦄🌈🏆🌈🦄";
+        els.overlayTitle.textContent = "THE PONIES WIN! 🎉";
+        els.overlayText.textContent =
+          "Hooray! You beat all 7 levels! The brave ponies used their rainbow power and saved the whole castle from every dragon. You did it!";
+        els.startBtn.textContent = "Play again";
+        els.overlay.classList.remove("hidden");
+      }
+
+      function loseGame() {
+        running = false;
+        pendingLevel = level; // retry the SAME level
+        Arcade.setHighScore(GAME_ID, score);
+        // Clear the screen and let the ponies cry for a moment first.
+        dragons = [];
+        beams = [];
+        crying = true;
+        clearTimeout(loseTimer);
+        loseTimer = setTimeout(showLoseOverlay, 2300);
+      }
+
+      function showLoseOverlay() {
+        els.emojiRow.textContent = "😭🦄😭";
+        els.overlayTitle.textContent = "The dragons got in!";
+        els.overlayText.textContent = `Oh no, the ponies are so sad! Tap to try Level ${level} again.`;
+        els.startBtn.textContent = `Try Level ${level} again`;
+        els.overlay.classList.remove("hidden");
+      }
+
+      // The start button either advances to the next level or starts fresh.
+      function onStart() {
+        if (pendingLevel) startLevel(pendingLevel);
+        else startGame();
+      }
+
+      els.startBtn.addEventListener("click", onStart);
+      els.homeBtn.addEventListener("click", Arcade.goHome);
+
+      // Boot — render a calm idle scene (sky + castle + ponies) until Play.
+      resize();
+      clouds = makeClouds();
+      updateHud();
+      updateCharge();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

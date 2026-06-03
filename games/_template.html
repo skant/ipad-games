@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Touch / iPad: lock zoom, fill the notch area, enable home-screen fullscreen -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0f1226" />
+    <title>Game Title</title>
+    <!-- Shared styles live one level up. -->
+    <link rel="stylesheet" href="../css/common.css" />
+    <style>
+      /* ----- Game-specific styles go here ----- */
+      #board {
+        /* your play surface */
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top bar: home button, title, live score. Reuse this on every game. -->
+    <header class="app-bar">
+      <button class="btn icon ghost" id="homeBtn" aria-label="Home">⬅︎</button>
+      <h1>Game Title</h1>
+      <div class="spacer"></div>
+      <div class="stat">Score <b id="score">0</b></div>
+      <div class="stat">Best <b id="best">0</b></div>
+    </header>
+
+    <!-- Play area -->
+    <main class="stage">
+      <div id="board" class="no-select"><!-- render your game here --></div>
+
+      <!-- Start / Game-over overlay -->
+      <div class="overlay" id="overlay">
+        <h2 id="overlayTitle">Game Title</h2>
+        <p id="overlayText">How to play goes here.</p>
+        <div class="big-score" id="finalScore" hidden></div>
+        <button class="btn primary" id="startBtn">Play</button>
+      </div>
+    </main>
+
+    <!-- Shared helpers: Arcade.onTap / onSwipe / buzz / high scores -->
+    <script src="../js/common.js"></script>
+    <script>
+      // ---- Change this to a unique id (must match js/games.js) ----
+      const GAME_ID = "template";
+
+      const els = {
+        board: document.getElementById("board"),
+        score: document.getElementById("score"),
+        best: document.getElementById("best"),
+        overlay: document.getElementById("overlay"),
+        overlayTitle: document.getElementById("overlayTitle"),
+        overlayText: document.getElementById("overlayText"),
+        finalScore: document.getElementById("finalScore"),
+        startBtn: document.getElementById("startBtn"),
+        homeBtn: document.getElementById("homeBtn"),
+      };
+
+      let score = 0;
+      let running = false;
+
+      els.best.textContent = Arcade.getHighScore(GAME_ID);
+
+      function setScore(n) {
+        score = n;
+        els.score.textContent = score;
+      }
+
+      function startGame() {
+        setScore(0);
+        running = true;
+        els.overlay.classList.add("hidden");
+        // TODO: reset and start your game loop here.
+      }
+
+      function endGame() {
+        running = false;
+        const isRecord = Arcade.setHighScore(GAME_ID, score);
+        els.best.textContent = Arcade.getHighScore(GAME_ID);
+        els.overlayTitle.textContent = isRecord ? "New Best!" : "Game Over";
+        els.overlayText.textContent = "Tap Play to try again.";
+        els.finalScore.hidden = false;
+        els.finalScore.textContent = score;
+        els.startBtn.textContent = "Play again";
+        els.overlay.classList.remove("hidden");
+      }
+
+      // ---- Input wiring (delete whichever you don't need) ----
+
+      // Tap input (no 300ms delay, no ghost clicks):
+      // Arcade.onTap(els.board, (e) => { if (!running) return; /* ... */ });
+
+      // Swipe input (prevents page scroll while swiping the board):
+      // Arcade.onSwipe(els.board, (dir) => { if (!running) return; /* dir: up|down|left|right */ });
+      // Arcade.bindArrowKeys((dir) => { /* desktop testing */ });
+
+      els.startBtn.addEventListener("click", startGame);
+      els.homeBtn.addEventListener("click", Arcade.goHome);
+    </script>
+  </body>
+</html>

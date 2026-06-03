@@ -1,0 +1,203 @@
+/* ===========================================================================
+   Shared styles for the iPad Arcade.
+   Centralizes the touch optimizations so every game inherits them.
+   =========================================================================== */
+
+:root {
+  --bg: #0f1226;
+  --bg-2: #1a1f3d;
+  --surface: #232a52;
+  --surface-2: #2e3766;
+  --accent: #6c7bff;
+  --accent-2: #00e0c6;
+  --text: #f2f4ff;
+  --text-dim: #9aa3d4;
+  --good: #45d97a;
+  --bad: #ff5d6c;
+  --gold: #ffcd4d;
+  --radius: 18px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  /* Kill the iOS tap flash + 300ms delay everywhere. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  /* Block rubber-band scrolling/bounce. */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+    system-ui, sans-serif;
+  /* Disable text selection during gameplay. */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Remove double-tap zoom; gestures handled per game. */
+  touch-action: manipulation;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(
+      120% 90% at 50% -10%,
+      var(--bg-2) 0%,
+      var(--bg) 60%
+    )
+    fixed;
+  padding: calc(var(--safe-top)) calc(var(--safe-right))
+    calc(var(--safe-bottom)) calc(var(--safe-left));
+}
+
+/* ----- App shell / header ----- */
+.app-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: rgba(15, 18, 38, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.app-bar h1 {
+  font-size: 1.25rem;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.app-bar .spacer {
+  flex: 1;
+}
+
+.app-bar .stat {
+  font-size: 1rem;
+  color: var(--text-dim);
+}
+
+.app-bar .stat b {
+  color: var(--text);
+}
+
+/* ----- Buttons (touch-sized) ----- */
+.btn {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 14px 20px;
+  min-width: 56px;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.08s ease, filter 0.15s ease, background 0.2s ease;
+  box-shadow: var(--shadow);
+  touch-action: manipulation;
+}
+
+.btn:active {
+  transform: scale(0.94);
+  filter: brightness(1.15);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent), #4a59e0);
+}
+
+.btn.accent {
+  background: linear-gradient(135deg, var(--accent-2), #00b39c);
+  color: #05231f;
+}
+
+.btn.ghost {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn.icon {
+  padding: 12px;
+  min-width: 52px;
+}
+
+/* ----- Main play area ----- */
+.stage {
+  flex: 1 1 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  min-height: 0;
+}
+
+/* ----- Overlay (start / game over) ----- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 24px;
+  background: rgba(15, 18, 38, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 50;
+  transition: opacity 0.25s ease;
+}
+
+.overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.overlay h2 {
+  font-size: 2.2rem;
+  margin: 0;
+}
+
+.overlay p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  max-width: 480px;
+}
+
+.overlay .big-score {
+  font-size: 3.4rem;
+  font-weight: 800;
+  color: var(--gold);
+  line-height: 1;
+}
+
+/* Prevent accidental long-press selection on interactive surfaces. */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
