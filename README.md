@@ -3,6 +3,15 @@
 A tiny framework for building simple HTML games that play great on an iPad. No
 build step, no dependencies — just open `index.html`.
 
+## Play now
+
+Hosted on GitHub Pages — open these on your iPad (and use Safari's
+**Share → Add to Home Screen** for a fullscreen icon):
+
+- **Launcher (all games):** https://skant.github.io/ipad-games/
+- 🦄 **Pony Rainbow Rescue:** https://skant.github.io/ipad-games/games/pony-rainbow.html
+- 🐢 **Turtle Numbers:** https://skant.github.io/ipad-games/games/turtle-numbers.html
+
 ## Structure
 
 ```
