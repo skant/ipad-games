@@ -1,0 +1,15 @@
+{
+  "provider": "elevenlabs",
+  "voice": "nzFihrBIvB34imQBuxub",
+  "model": "eleven_multilingual_v2",
+  "keys": [
+    "win_rex",
+    "win_sunny",
+    "win_fern",
+    "win_misty",
+    "win_sky",
+    "win_violet",
+    "win_rosie",
+    "back_to_start"
+  ]
+}

@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#14202b" />
+    <title>Turtle Fighting</title>
+    <link rel="stylesheet" href="../css/common.css" />
+    <style>
+      body {
+        background: radial-gradient(circle at 50% 18%, #2b4a63 0%, #16242f 60%, #0d161d 100%);
+        color: #eaf6ff;
+      }
+      .app-bar {
+        background: rgba(10, 22, 30, 0.55);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        color: #d8f5e0;
+        align-items: center;
+      }
+      .app-bar h1 { font-size: 1.15rem; }
+      .app-bar .stat {
+        color: #ffd24d;
+        font-size: 4rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .stage {
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 12px;
+        justify-content: flex-start;
+      }
+      .voice-sel {
+        max-width: 130px;
+        margin-right: 10px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.12);
+        color: #eaf6ff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        -webkit-appearance: none;
+        appearance: none;
+        touch-action: manipulation;
+      }
+      .voice-sel option { color: #16242f; }
+
+      /* ---------- Ninja character (black, eyes only, with sword) ---------- */
+      .turtle-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        margin-top: 2px;
+        cursor: pointer;
+      }
+      .turtle {
+        position: relative;
+        width: clamp(110px, 24vw, 150px);
+        height: clamp(110px, 24vw, 150px);
+        transition: transform 0.12s ease;
+      }
+      /* black ninja hood / head */
+      .turtle-head {
+        position: absolute;
+        inset: 0;
+        border-radius: 52% 52% 48% 48% / 58% 58% 42% 42%;
+        background: radial-gradient(circle at 50% 30%, #353535, #0a0a0a 72%);
+        box-shadow: inset 0 -12px 20px rgba(0, 0, 0, 0.7),
+          inset 0 8px 14px rgba(255, 255, 255, 0.06),
+          0 10px 22px rgba(0, 0, 0, 0.55);
+        transform-origin: center bottom;
+      }
+      /* the white eye band — the only thing visible on the ninja */
+      .eyeband {
+        position: absolute;
+        top: 42%;
+        left: 12%;
+        width: 76%;
+        height: 20%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16%;
+        z-index: 2;
+      }
+      .eye {
+        position: relative;
+        width: 40%;
+        height: 100%;
+        background: #fff;
+        border-radius: 60% 60% 50% 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 10px rgba(200, 235, 255, 0.55),
+          inset 0 -2px 3px rgba(0, 0, 0, 0.25);
+        transform: skewX(-10deg);
+      }
+      .eye:last-child { transform: skewX(10deg); }
+      /* angry brow shading the top of each eye */
+      .eye::before {
+        content: "";
+        position: absolute;
+        top: -34%;
+        left: -6%;
+        width: 112%;
+        height: 55%;
+        background: #050505;
+        transform: skewY(10deg);
+        border-radius: 2px;
+      }
+      .eye:last-child::before { transform: skewY(-10deg); }
+      .pupil {
+        width: 30%;
+        height: 56%;
+        background: #111;
+        border-radius: 50%;
+        transition: transform 0.2s ease;
+      }
+
+      /* sword strapped at the ninja's side */
+      .sword {
+        position: absolute;
+        right: -16%;
+        top: 26%;
+        width: 16%;
+        height: 78%;
+        transform: rotate(26deg);
+        transform-origin: bottom center;
+        z-index: 1;
+      }
+      .sword .blade {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+        width: 32%;
+        height: 74%;
+        background: linear-gradient(90deg, #eaf6ff, #aacbe2 48%, #5f87a4);
+        border-radius: 3px 3px 0 0;
+        box-shadow: 0 0 8px rgba(190, 225, 255, 0.7);
+      }
+      .sword .guard {
+        position: absolute;
+        left: 50%;
+        top: 73%;
+        transform: translateX(-50%);
+        width: 90%;
+        height: 7%;
+        background: #caa24a;
+        border-radius: 3px;
+      }
+      .sword .hilt {
+        position: absolute;
+        left: 50%;
+        top: 79%;
+        transform: translateX(-50%);
+        width: 20%;
+        height: 21%;
+        background: #6b3f1d;
+        border-radius: 3px;
+      }
+
+      .turtle.crying .pupil { transform: translateY(3px) scaleY(0.5); }
+      .turtle.crying .eye { transform: skewX(-10deg) translateY(2px) scaleY(0.7); }
+      .turtle.crying .eye:last-child { transform: skewX(10deg) translateY(2px) scaleY(0.7); }
+
+      .turtle.speaking:not(.crying):not(.kick) .turtle-head {
+        animation: speakBounce 0.42s ease 2;
+      }
+      .turtle.crying .turtle-head { animation: cryShake 0.3s ease 4; }
+      @keyframes speakBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+      @keyframes cryShake {
+        0%, 100% { transform: rotate(0); }
+        25% { transform: rotate(-6deg); }
+        75% { transform: rotate(6deg); }
+      }
+      /* when leaping to strike, the sword swings */
+      .turtle.striking .sword { animation: swordSwing 0.4s ease; }
+      @keyframes swordSwing {
+        0% { transform: rotate(26deg); }
+        40% { transform: rotate(-40deg); }
+        100% { transform: rotate(20deg); }
+      }
+
+      /* bright sword-slash streak drawn across the cut letter */
+      .slash {
+        position: fixed;
+        z-index: 140;
+        pointer-events: none;
+        width: 6px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0) 0%,
+          #ffffff 35%,
+          #bfe6ff 70%,
+          rgba(255, 255, 255, 0) 100%
+        );
+        box-shadow: 0 0 18px 5px rgba(190, 230, 255, 0.95);
+        border-radius: 6px;
+        transform: rotate(35deg);
+        transform-origin: top center;
+        animation: slashGo 0.34s ease forwards;
+      }
+      @keyframes slashGo {
+        0% { height: 0; opacity: 0; }
+        25% { opacity: 1; }
+        70% { height: var(--len, 170px); opacity: 1; }
+        100% { height: var(--len, 170px); opacity: 0; }
+      }
+
+      .tear {
+        position: absolute;
+        font-size: 24px;
+        z-index: 3;
+        animation: tearFall 1.1s ease forwards;
+      }
+      @keyframes tearFall {
+        0% { transform: translateY(0) scale(0.6); opacity: 0; }
+        15% { opacity: 1; }
+        100% { transform: translateY(70px) scale(1); opacity: 0; }
+      }
+
+      .turtle-name {
+        font-weight: 800;
+        font-size: 1.05rem;
+        color: #cfe6ff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+        letter-spacing: 2px;
+      }
+      .tap-hint {
+        font-size: 0.8rem;
+        color: #a9d6ff;
+        opacity: 0.85;
+      }
+
+      /* ---------- Progress track (race to the star) ---------- */
+      .track {
+        position: relative;
+        width: 100%;
+        max-width: 760px;
+        height: 92px;
+        margin: 4px auto 2px;
+        flex: 0 0 auto;
+      }
+      .road {
+        position: absolute;
+        left: 4%;
+        right: 4%;
+        top: 50%;
+        height: 12px;
+        transform: translateY(-50%);
+        background: repeating-linear-gradient(
+          90deg,
+          #d8b483 0 18px,
+          #c9a36e 18px 22px
+        );
+        border-radius: 999px;
+        box-shadow: inset 0 -3px 4px rgba(0, 0, 0, 0.25);
+      }
+      .foods { position: absolute; inset: 0; }
+      .food {
+        position: absolute;
+        top: 50%;
+        font-size: 24px;
+        transform: translate(-50%, -62%);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+      }
+      .food.eaten { transform: translate(-50%, -120%) scale(0); opacity: 0; }
+      /* the turtle chomps the food as it walks over it */
+      .food.chomp { animation: chomp 0.45s ease forwards; }
+      @keyframes chomp {
+        0% { transform: translate(-50%, -62%) scale(1) rotate(0); }
+        35% { transform: translate(-50%, -85%) scale(1.55) rotate(-10deg); }
+        100% { transform: translate(-50%, -120%) scale(0) rotate(12deg); opacity: 0; }
+      }
+      .nom {
+        position: fixed;
+        font-size: 30px;
+        z-index: 130;
+        pointer-events: none;
+        animation: nomPop 0.7s ease forwards;
+      }
+      @keyframes nomPop {
+        0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+        25% { opacity: 1; }
+        100% { transform: translate(-50%, -42px) scale(1.2); opacity: 0; }
+      }
+      .walker {
+        position: absolute;
+        top: 50%;
+        left: 4%;
+        font-size: 68px;
+        transform: translate(-50%, -56%) scaleX(-1);
+        transition: left 0.45s cubic-bezier(0.34, 1.4, 0.5, 1);
+        z-index: 3;
+        will-change: left;
+        filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.4));
+      }
+      .walker.hop { animation: hop 0.45s ease; }
+      @keyframes hop {
+        0%, 100% { margin-top: 0; }
+        50% { margin-top: -16px; }
+      }
+      .goal-star {
+        position: absolute;
+        top: 50%;
+        left: 96%;
+        font-size: 42px;
+        transform: translate(-50%, -56%);
+        filter: drop-shadow(0 0 6px rgba(255, 205, 77, 0.85));
+      }
+      .goal-star.celebrate { animation: starPop 0.6s ease 2; }
+      @keyframes starPop {
+        0%, 100% { transform: translate(-50%, -56%) scale(1) rotate(0); }
+        50% { transform: translate(-50%, -56%) scale(1.5) rotate(18deg); }
+      }
+      /* small confetti that bursts above the bar on each step */
+      .bar-confetti {
+        position: fixed;
+        font-size: 22px;
+        z-index: 120;
+        pointer-events: none;
+        animation: barPop 0.85s ease forwards;
+      }
+      @keyframes barPop {
+        0% { transform: translate(0, 0) scale(0.4); opacity: 0; }
+        20% { opacity: 1; }
+        100% { transform: translate(var(--dx, 0), -60px) scale(1.1); opacity: 0; }
+      }
+
+      /* ---------- Baddie grid (Foot-Clan ninjas) ---------- */
+      .baddies {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: clamp(12px, 3vw, 22px);
+        width: 100%;
+        max-width: 580px;
+        margin: auto auto clamp(20px, 6vh, 70px);
+      }
+      .baddie {
+        -webkit-appearance: none;
+        appearance: none;
+        border: none;
+        cursor: pointer;
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 26px;
+        background: linear-gradient(180deg, var(--c, #7a4bd0) 0%, var(--c2, #4d2c8f) 100%);
+        box-shadow: 0 8px 0 rgba(0, 0, 0, 0.28), 0 12px 24px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+        touch-action: manipulation;
+        transition: transform 0.08s ease;
+        animation: bob 2.6s ease-in-out infinite;
+      }
+      .baddie:nth-child(2) { animation-delay: 0.3s; }
+      .baddie:nth-child(3) { animation-delay: 0.6s; }
+      .baddie:nth-child(4) { animation-delay: 0.9s; }
+      .baddie:nth-child(5) { animation-delay: 1.2s; }
+      .baddie:nth-child(6) { animation-delay: 1.5s; }
+      @keyframes bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
+      .baddie:active { transform: translateY(4px) scale(0.97); }
+
+      .glyph {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 900;
+        line-height: 1;
+        font-size: clamp(48px, 14vw, 100px);
+        text-shadow: 0 3px 4px rgba(0, 0, 0, 0.45);
+      }
+
+      /* sliced by the sword: a quick flinch, then it topples and drops down */
+      .baddie.ko { animation: sliced 0.6s cubic-bezier(0.4, 0, 0.8, 1) forwards; }
+      @keyframes sliced {
+        0% { transform: translateY(0) rotate(0) scale(1); }
+        18% { transform: translateY(-4px) rotate(-5deg) scale(1.05); }
+        38% { transform: translateY(0) rotate(6deg); }
+        100% { transform: translateY(180px) rotate(22deg) scale(0.75); opacity: 0; }
+      }
+      .baddie.wrong { animation: badShake 0.45s; }
+      @keyframes badShake {
+        0%, 100% { transform: translateX(0) rotate(0); }
+        20% { transform: translateX(-12px) rotate(-5deg); }
+        40% { transform: translateX(12px) rotate(5deg); }
+        60% { transform: translateX(-9px); }
+        80% { transform: translateX(9px); }
+      }
+
+      .pop-emoji {
+        position: fixed;
+        font-size: 46px;
+        z-index: 200;
+        pointer-events: none;
+        animation: floatUp 1.1s ease forwards;
+      }
+      @keyframes floatUp {
+        0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+        15% { opacity: 1; }
+        100% { transform: translate(var(--dx, 0), -170px) scale(1.3); opacity: 0; }
+      }
+
+      .overlay h2 { font-size: 2.2rem; }
+      #emojiRow { font-size: 3rem; letter-spacing: 6px; }
+    </style>
+  </head>
+  <body>
+    <header class="app-bar">
+      <button class="btn icon ghost" id="homeBtn" aria-label="Home">⬅︎</button>
+      <h1>🐢 Turtle Fighting</h1>
+      <div class="spacer"></div>
+      <select id="voiceSel" class="voice-sel" aria-label="Choose voice" title="Voice"></select>
+      <div class="stat">👊 <b id="score">0</b></div>
+      <button class="btn icon ghost" id="replayBtn" aria-label="Say it again">🔊</button>
+    </header>
+
+    <main class="stage no-select">
+      <div class="turtle-wrap" id="turtleWrap">
+        <div class="turtle happy" id="turtle">
+          <div class="turtle-head"></div>
+          <div class="eyeband">
+            <div class="eye"><div class="pupil"></div></div>
+            <div class="eye"><div class="pupil"></div></div>
+          </div>
+          <div class="sword">
+            <div class="blade"></div>
+            <div class="guard"></div>
+            <div class="hilt"></div>
+          </div>
+        </div>
+        <div class="turtle-name" id="turtleName">NINJA</div>
+        <div class="tap-hint">🔊 tap the ninja to hear it again</div>
+      </div>
+
+      <div class="track" id="track">
+        <div class="road"></div>
+        <div class="foods" id="foods"></div>
+        <div class="walker" id="walker">🐢</div>
+        <div class="goal-star" id="goalStar">⭐</div>
+      </div>
+
+      <div class="baddies" id="baddies"></div>
+
+      <div class="overlay" id="overlay">
+        <div id="emojiRow">🥷⚔️🔤</div>
+        <h2>Turtle Fighting</h2>
+        <p>
+          The ninja calls out a letter. Tap the baddie holding that letter and
+          the ninja's sword will slash it down! Tap the ninja anytime to hear it
+          again. Turn the iPad volume up.
+        </p>
+        <button class="btn primary" id="startBtn">Fight!</button>
+      </div>
+    </main>
+
+    <script src="../js/common.js"></script>
+    <script>
+      const GAME_ID = "turtle-fighting";
+      const OPTIONS = 6; // ninjas on screen
+
+      const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      function pickTarget() {
+        return LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      }
+
+      const TURTLES = [
+        { name: "Leonardo", color: "#2f6fe0" },
+        { name: "Raphael", color: "#e23b3b" },
+        { name: "Michelangelo", color: "#ff8c1a" },
+        { name: "Donatello", color: "#8b5cf6" },
+      ];
+      // baddie body colors (top / bottom of gradient)
+      const BADDIE_COLORS = [
+        ["#7a4bd0", "#4d2c8f"],
+        ["#d04b8f", "#8f2c63"],
+        ["#4b8fd0", "#2c5b8f"],
+        ["#4bd0a0", "#2c8f6e"],
+        ["#d0a14b", "#8f6a2c"],
+        ["#d04b4b", "#8f2c2c"],
+      ];
+      const PRAISE = ["Cowabunga!", "KO!", "Turtle power!", "Hi-YA!", "Booyakasha!", "Pow!"];
+
+      const els = {
+        score: document.getElementById("score"),
+        baddies: document.getElementById("baddies"),
+        turtle: document.getElementById("turtle"),
+        turtleWrap: document.getElementById("turtleWrap"),
+        turtleName: document.getElementById("turtleName"),
+        overlay: document.getElementById("overlay"),
+        startBtn: document.getElementById("startBtn"),
+        homeBtn: document.getElementById("homeBtn"),
+        replayBtn: document.getElementById("replayBtn"),
+        voiceSel: document.getElementById("voiceSel"),
+        foods: document.getElementById("foods"),
+        walker: document.getElementById("walker"),
+        goalStar: document.getElementById("goalStar"),
+      };
+
+      const STEPS = 10;
+      const FOOD_SET = ["🍕","🍓","🍎","🍔","🥦","🍉","🌽","🍇","🥕","🍪","🍌","🧀","🍩","🍒"];
+
+      let target = "A";
+      let score = 0;
+      let busy = false;
+      let turtleIdx = 0;
+      let started = false;
+      let progress = 0;
+      let rebuildTrackNext = false;
+      let foodEls = [];
+
+      const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      // ---------- Speech ----------
+      // voice === null  => use the device's default voice (follows the iPad's
+      // Spoken Content setting). Otherwise we use the voice picked in the menu.
+      let voice = null;
+      let allVoices = [];
+      const VOICE_KEY = "tf-voice";
+
+      function applyChosenVoice() {
+        const saved = localStorage.getItem(VOICE_KEY) || "";
+        voice = saved ? allVoices.find((v) => v.voiceURI === saved) || null : null;
+      }
+      function buildVoiceOptions() {
+        const sel = els.voiceSel;
+        if (!sel) return;
+        const en = allVoices.filter((v) => /^en/i.test(v.lang));
+        const list = (en.length ? en : allVoices).slice();
+        const saved = localStorage.getItem(VOICE_KEY) || "";
+        sel.innerHTML = "";
+        const def = document.createElement("option");
+        def.value = "";
+        def.textContent = "Default voice";
+        sel.appendChild(def);
+        list.forEach((v) => {
+          const o = document.createElement("option");
+          o.value = v.voiceURI;
+          const premium = /premium|enhanced|neural|natural/i.test(v.name + v.voiceURI);
+          o.textContent = v.name.replace(/\s*\(.*?\)\s*/g, "") + (premium ? " ⭐" : "");
+          sel.appendChild(o);
+        });
+        sel.value = saved;
+      }
+      function refreshVoices() {
+        if (!("speechSynthesis" in window)) return;
+        allVoices = speechSynthesis.getVoices() || [];
+        buildVoiceOptions();
+        applyChosenVoice();
+      }
+      // iOS Safari returns an empty voice list until speech is first triggered
+      // and often never fires onvoiceschanged — so poll until voices appear.
+      let voiceTries = 0;
+      function ensureVoices() {
+        if (!("speechSynthesis" in window)) return;
+        refreshVoices();
+        if ((!allVoices || allVoices.length === 0) && voiceTries < 30) {
+          voiceTries++;
+          setTimeout(ensureVoices, 250);
+        }
+      }
+      if ("speechSynthesis" in window) {
+        ensureVoices();
+        speechSynthesis.onvoiceschanged = () => {
+          voiceTries = 0;
+          refreshVoices();
+        };
+      }
+      let speakClear = null;
+      function speak(text, { rate = 0.85, pitch = 1.2 } = {}) {
+        if (!("speechSynthesis" in window)) return;
+        try {
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          if (voice) {
+            u.voice = voice;
+            u.lang = voice.lang;
+          } else {
+            u.lang = "en-US";
+          }
+          u.rate = rate;
+          u.pitch = pitch;
+          u.volume = 1;
+          if (!els.turtle.classList.contains("crying")) {
+            els.turtle.classList.add("speaking");
+          }
+          u.onend = () => els.turtle.classList.remove("speaking");
+          clearTimeout(speakClear);
+          speakClear = setTimeout(() => els.turtle.classList.remove("speaking"), 1600);
+          speechSynthesis.speak(u);
+        } catch (e) {}
+      }
+      // say the letter clearly, then in a word so 3-year-olds don't mishear
+      function sayTarget() {
+        speak("Find Letter " + target, { rate: 0.85, pitch: 1.05 });
+      }
+      // replay just says the letter name
+      function sayLetter() {
+        speak(target, { rate: 0.8, pitch: 1.05 });
+      }
+
+      // ---------- Turtle mood ----------
+      function setMood(mood) {
+        els.turtle.classList.remove("happy", "crying");
+        if (mood === "happy") els.turtle.classList.add("happy");
+        else if (mood === "crying") els.turtle.classList.add("crying");
+      }
+      function applyTurtle() {
+        // single black ninja — nothing to recolor
+      }
+      // The Ninja Turtle leaps from its spot, strikes the baddie, then returns.
+      function strikeBaddie(badEl, onHit) {
+        const tr = els.turtle.getBoundingClientRect();
+        const br = badEl.getBoundingClientRect();
+        const ghost = els.turtle.cloneNode(true);
+        ghost.removeAttribute("id");
+        ghost.classList.remove("crying", "speaking", "kick");
+        ghost.classList.add("happy");
+        Object.assign(ghost.style, {
+          position: "fixed",
+          left: tr.left + "px",
+          top: tr.top + "px",
+          width: tr.width + "px",
+          height: tr.height + "px",
+          margin: "0",
+          zIndex: "150",
+          pointerEvents: "none",
+          transition: "transform 0.3s cubic-bezier(0.5,0,0.75,1)",
+        });
+        document.body.appendChild(ghost);
+
+        // hide the resting turtle while its fighter clone is out
+        els.turtle.style.visibility = "hidden";
+
+        const scale = Math.min(br.width / tr.width, 1) * 0.92;
+        const dx = br.left + br.width / 2 - (tr.left + tr.width / 2);
+        const dy = br.top + br.height / 2 - (tr.top + tr.height / 2);
+        void ghost.offsetWidth;
+        ghost.style.transform =
+          "translate(" + dx + "px," + dy + "px) scale(" + scale + ") rotate(10deg)";
+
+        // impact — swing the sword and slash the letter
+        setTimeout(() => {
+          ghost.style.transition = "transform 0.1s ease";
+          ghost.style.transform =
+            "translate(" + dx + "px," + dy + "px) scale(" + scale * 1.12 + ") rotate(-14deg)";
+          ghost.classList.add("striking");
+          slashLetter(badEl);
+          Arcade.buzz(40);
+          celebrate(badEl);
+          if (onHit) onHit();
+        }, 300);
+
+        // leap back home
+        setTimeout(() => {
+          ghost.style.transition = "transform 0.3s ease";
+          ghost.style.transform = "translate(0,0) scale(1) rotate(0)";
+        }, 470);
+
+        setTimeout(() => {
+          ghost.remove();
+          els.turtle.style.visibility = "";
+        }, 800);
+      }
+
+      // a bright sword-slash streak drawn diagonally across the cut letter
+      function slashLetter(badEl) {
+        const r = badEl.getBoundingClientRect();
+        const len = r.height * 1.25;
+        const s = document.createElement("div");
+        s.className = "slash";
+        s.style.setProperty("--len", len + "px");
+        // start a touch above the letter, centered, then it grows downward
+        s.style.left = r.left + r.width / 2 - 3 + "px";
+        s.style.top = r.top - r.height * 0.12 + "px";
+        document.body.appendChild(s);
+        setTimeout(() => s.remove(), 360);
+      }
+
+      function spawnTears() {
+        for (let i = 0; i < 2; i++) {
+          const tear = document.createElement("div");
+          tear.className = "tear";
+          tear.textContent = "💧";
+          els.turtle.appendChild(tear);
+          tear.style.left = (i === 0 ? 32 : 60) + "%";
+          tear.style.top = "48%";
+          setTimeout(() => tear.remove(), 1200);
+        }
+      }
+
+      // ---------- Celebration ----------
+      function celebrateAt(cx, cy, emojis, count) {
+        for (let i = 0; i < count; i++) {
+          const s = document.createElement("div");
+          s.className = "pop-emoji";
+          s.textContent = emojis[i % emojis.length];
+          s.style.left = cx + "px";
+          s.style.top = cy + "px";
+          s.style.setProperty("--dx", randInt(-90, 90) + "px");
+          document.body.appendChild(s);
+          setTimeout(() => s.remove(), 1150);
+        }
+      }
+      function celebrate(el) {
+        const r = el.getBoundingClientRect();
+        celebrateAt(r.left + r.width / 2, r.top + r.height / 2, ["💥", "⭐", "🎉", "🐢", "👊"], 8);
+      }
+
+      // ---------- Progress track (race to the star) ----------
+      const TRACK_CONFETTI = ["🎉", "⭐", "✨", "💥", "🟢", "🟡"];
+      function walkerPct(p) {
+        return 4 + (p / STEPS) * 92; // 4%..96%
+      }
+      function buildTrack() {
+        progress = 0;
+        rebuildTrackNext = false;
+        els.foods.innerHTML = "";
+        foodEls = [];
+        for (let i = 0; i < STEPS; i++) {
+          const f = document.createElement("div");
+          f.className = "food";
+          f.textContent = FOOD_SET[randInt(0, FOOD_SET.length - 1)];
+          f.style.left = walkerPct(i + 0.5) + "%";
+          els.foods.appendChild(f);
+          foodEls.push(f);
+        }
+        positionWalker(false);
+        updateFoods();
+      }
+      function positionWalker(animate) {
+        if (!animate) els.walker.style.transition = "none";
+        els.walker.style.left = walkerPct(progress) + "%";
+        if (!animate) {
+          void els.walker.offsetWidth;
+          els.walker.style.transition = "";
+        }
+      }
+      function updateFoods() {
+        foodEls.forEach((f, i) => f.classList.toggle("eaten", progress >= i + 1));
+      }
+      // small confetti burst above the bar, at the walker's position
+      function barConfetti() {
+        const r = els.walker.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height * 0.25;
+        for (let i = 0; i < 7; i++) {
+          const s = document.createElement("div");
+          s.className = "bar-confetti";
+          s.textContent = TRACK_CONFETTI[i % TRACK_CONFETTI.length];
+          s.style.left = cx + "px";
+          s.style.top = cy + "px";
+          s.style.setProperty("--dx", randInt(-55, 55) + "px");
+          document.body.appendChild(s);
+          setTimeout(() => s.remove(), 900);
+        }
+      }
+      // a happy "yum" bubble pops over the turtle when it eats
+      function nomFood() {
+        const r = els.walker.getBoundingClientRect();
+        const s = document.createElement("div");
+        s.className = "nom";
+        s.textContent = ["😋", "😻", "🤤", "😺"][randInt(0, 3)];
+        s.style.left = r.left + r.width / 2 + "px";
+        s.style.top = r.top + r.height * 0.05 + "px";
+        document.body.appendChild(s);
+        setTimeout(() => s.remove(), 720);
+      }
+      function stepForward() {
+        progress++;
+        positionWalker(true);
+        els.walker.classList.remove("hop");
+        void els.walker.offsetWidth;
+        els.walker.classList.add("hop");
+        updateFoods();
+        // the food the turtle just reached gets chomped
+        const eaten = foodEls[progress - 1];
+        if (eaten) {
+          eaten.classList.add("chomp");
+          nomFood();
+        }
+        barConfetti();
+        if (progress >= STEPS) reachStar();
+      }
+      function reachStar() {
+        els.goalStar.classList.add("celebrate");
+        const r = els.goalStar.getBoundingClientRect();
+        celebrateAt(r.left + r.width / 2, r.top + r.height / 2, ["⭐", "🌟", "🎉", "🏆", "🐢"], 12);
+        speak("You win! Cowabunga!", { rate: 0.95, pitch: 1.3 });
+        rebuildTrackNext = true;
+        setTimeout(() => els.goalStar.classList.remove("celebrate"), 1300);
+      }
+      function resetTrack() {
+        progress = 0;
+        positionWalker(true);
+        foodEls.forEach((f) => f.classList.remove("chomp"));
+        updateFoods();
+      }
+
+      // ---------- Rounds ----------
+      function renderBaddies(arr) {
+        els.baddies.innerHTML = "";
+        arr.forEach((ltr, i) => {
+          const b = document.createElement("button");
+          b.className = "baddie";
+          const c = BADDIE_COLORS[i % BADDIE_COLORS.length];
+          b.style.setProperty("--c", c[0]);
+          b.style.setProperty("--c2", c[1]);
+          b.innerHTML = '<div class="glyph">' + ltr + "</div>";
+          Arcade.onTap(b, () => choose(ltr, b));
+          els.baddies.appendChild(b);
+        });
+      }
+
+      function newRound() {
+        busy = false;
+        if (rebuildTrackNext) buildTrack();
+        target = pickTarget();
+        turtleIdx = (turtleIdx + randInt(1, TURTLES.length - 1)) % TURTLES.length;
+        applyTurtle();
+        setMood("happy");
+        const opts = new Set([target]);
+        while (opts.size < OPTIONS) opts.add(LETTERS[randInt(0, 25)]);
+        renderBaddies(shuffle([...opts]));
+        sayTarget();
+      }
+
+      function choose(ltr, el) {
+        if (busy || !started) return;
+        if (ltr === target) {
+          busy = true;
+          setMood("happy");
+          score++;
+          els.score.textContent = score;
+          Arcade.setHighScore(GAME_ID, score);
+          strikeBaddie(el, () => {
+            el.classList.add("ko");
+            stepForward();
+          });
+          speak(PRAISE[randInt(0, PRAISE.length - 1)] + " " + target + "!", { rate: 0.98, pitch: 1.15 });
+          setTimeout(newRound, 1400);
+        } else {
+          el.classList.add("wrong");
+          setMood("crying");
+          spawnTears();
+          resetTrack();
+          Arcade.buzz(60);
+          speak("Oops! Try the letter " + target + ".", { rate: 0.9, pitch: 1.0 });
+          setTimeout(() => el.classList.remove("wrong"), 480);
+          setTimeout(() => {
+            setMood("happy");
+            sayTarget();
+          }, 1700);
+        }
+      }
+
+      // ---------- Controls ----------
+      function startGame() {
+        started = true;
+        score = 0;
+        els.score.textContent = score;
+        els.overlay.classList.add("hidden");
+        // first user gesture: nudge iOS to load its voice list, then rebuild
+        refreshVoices();
+        setTimeout(refreshVoices, 400);
+        buildTrack();
+        newRound();
+      }
+
+      els.startBtn.addEventListener("click", startGame);
+      els.homeBtn.addEventListener("click", Arcade.goHome);
+      els.replayBtn.addEventListener("click", () => started && sayLetter());
+      Arcade.onTap(els.turtleWrap, () => started && sayLetter());
+      els.voiceSel.addEventListener("change", () => {
+        localStorage.setItem(VOICE_KEY, els.voiceSel.value);
+        applyChosenVoice();
+        speak("Hi! Find Letter " + target, { rate: 0.85, pitch: 1.05 }); // preview
+      });
+      // rebuild the list right before the native picker opens (helps iPad)
+      els.voiceSel.addEventListener("focus", refreshVoices);
+      els.voiceSel.addEventListener("pointerdown", refreshVoices);
+
+      els.score.textContent = Arcade.getHighScore(GAME_ID);
+    </script>
+  </body>
+</html>

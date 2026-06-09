@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#8a5a2b" />
+    <title>Dinosaur Racing</title>
+    <link rel="stylesheet" href="../css/common.css?v=20260607d" />
+    <style>
+      body {
+        /* warm wood floor like the photo */
+        background:
+          repeating-linear-gradient(
+            90deg,
+            rgba(0, 0, 0, 0.06) 0 2px,
+            transparent 2px 90px
+          ),
+          linear-gradient(135deg, #c08a4e 0%, #9c6634 55%, #7d4f28 100%);
+        color: #2a1a0c;
+      }
+      .app-bar {
+        background: rgba(40, 24, 10, 0.55);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        color: #ffe9c7;
+        align-items: center;
+      }
+      .app-bar h1 { font-size: 1.1rem; }
+      .app-bar .stat {
+        color: #ffd24d;
+        font-size: 2.6rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .stage {
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px 10px;
+        justify-content: flex-start;
+      }
+
+      /* ---------- Announcer (big tap-to-replay button) ---------- */
+      .caller {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: linear-gradient(180deg, #ffd24d 0%, #ffb01f 100%);
+        border: 3px solid #fff;
+        border-radius: 20px;
+        padding: 12px 28px;
+        cursor: pointer;
+        margin: 4px auto 2px;
+        box-shadow: 0 6px 0 rgba(120, 70, 0, 0.35), 0 10px 20px rgba(0, 0, 0, 0.35);
+        transition: transform 0.08s ease, box-shadow 0.08s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .caller:active {
+        transform: translateY(4px);
+        box-shadow: 0 2px 0 rgba(120, 70, 0, 0.35), 0 5px 10px rgba(0, 0, 0, 0.35);
+      }
+      .caller .face {
+        font-size: 52px;
+        line-height: 1;
+        transform-origin: center bottom;
+      }
+      .caller.speaking .face { animation: callBounce 0.42s ease 2; }
+      @keyframes callBounce {
+        0%, 100% { transform: translateY(0) rotate(0); }
+        50% { transform: translateY(-8px) rotate(-6deg); }
+      }
+      .caller .label {
+        font-weight: 900;
+        font-size: 1.5rem;
+        color: #5a3b00;
+        line-height: 1.1;
+      }
+      .caller .sub {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #6b4a00;
+        opacity: 0.95;
+      }
+
+      /* ---------- Vertical race (dinos climb their blue track) ---------- */
+      .race {
+        position: relative;
+        flex: 1 1 auto; /* fill all remaining height */
+        width: 100%;
+        max-width: 920px;
+        margin: 2px auto 4px;
+        display: flex;
+        gap: clamp(5px, 1.4vw, 12px);
+        align-items: stretch;
+        min-height: 0;
+      }
+      .lane {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      .lane.bad .track { animation: laneShake 0.4s; }
+      @keyframes laneShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+
+      /* the blue track: a clear column of stepping squares */
+      .track {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #dcefff 0%, #b6e2fb 100%);
+        border: 3px solid #7fb8e6;
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5),
+          0 8px 18px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column-reverse; /* square 0 sits at the bottom */
+        padding: 6px;
+        gap: 6px;
+        overflow: hidden;
+      }
+      .cell {
+        flex: 1 1 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.45);
+        border: 2px dashed rgba(90, 147, 207, 0.7);
+      }
+      .cell.finish {
+        border: 2px solid #ffd24d;
+        background-color: #fff;
+        background-image:
+          linear-gradient(45deg, #222 25%, transparent 25%),
+          linear-gradient(-45deg, #222 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #222 75%),
+          linear-gradient(-45deg, transparent 75%, #222 75%);
+        background-size: 14px 14px;
+        background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+      }
+      .dino {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        font-size: clamp(26px, 6vw, 52px);
+        transform: translate(-50%, -50%);
+        transition: top 0.5s cubic-bezier(0.34, 1.35, 0.5, 1);
+        will-change: top;
+        z-index: 3;
+        filter: saturate(1.3);
+        pointer-events: none;
+      }
+      .dino.run { animation: run 0.5s ease; }
+      @keyframes run {
+        0%, 100% { margin-top: 0; }
+        50% { margin-top: -10px; }
+      }
+      .crown {
+        position: absolute;
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 20px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+      .lane.win .crown { opacity: 1; }
+      .lane.win .track {
+        border-color: #ffd24d;
+        box-shadow: inset 0 0 0 2px rgba(255, 210, 77, 0.7),
+          0 0 20px rgba(255, 210, 77, 0.6);
+      }
+
+      /* letter card at the bottom of each dino's track (like the photo) */
+      .card {
+        flex: 0 0 auto;
+        margin-top: 6px;
+        height: clamp(38px, 6.5vh, 58px);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #d6eefb 0%, #a9d4ee 100%);
+        border: 2px solid #fff;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #15445f;
+        font-weight: 900;
+        font-size: clamp(20px, 5.5vw, 38px);
+        line-height: 1;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+      }
+      .lane.win .card {
+        background: linear-gradient(180deg, #fff1b8 0%, #ffd24d 100%);
+        color: #7a5200;
+      }
+
+      .pop-emoji {
+        position: fixed;
+        font-size: 30px;
+        z-index: 200;
+        pointer-events: none;
+        animation: floatUp 1s ease forwards;
+      }
+      @keyframes floatUp {
+        0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+        15% { opacity: 1; }
+        100% { transform: translate(var(--dx, 0), -120px) scale(1.2); opacity: 0; }
+      }
+
+      .confetti {
+        position: fixed;
+        top: -34px;
+        z-index: 250;
+        pointer-events: none;
+        animation: confettiFall var(--dur, 2.4s) linear forwards;
+      }
+      @keyframes confettiFall {
+        0% { transform: translateY(0) rotate(0); opacity: 0; }
+        10% { opacity: 1; }
+        100% { transform: translateY(112vh) rotate(540deg); opacity: 1; }
+      }
+
+      .overlay h2 { font-size: 2.1rem; }
+      #emojiRow { font-size: 3rem; letter-spacing: 4px; }
+
+      /* ---------- Big letter reveal (celebration on a correct tap) ---------- */
+      .letter-reveal {
+        position: fixed;
+        inset: 0;
+        z-index: 300;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(20, 12, 4, 0);
+        pointer-events: none; /* taps are locked during the reveal anyway */
+        transition: background 0.25s ease;
+      }
+      .letter-reveal.show {
+        display: flex;
+        background: rgba(20, 12, 4, 0.45);
+      }
+      .letter-reveal.out { background: rgba(20, 12, 4, 0); }
+      /* Same warm card vibe as the lane letter cards, but huge. */
+      .letter-reveal-card {
+        width: min(60vw, 44vh);
+        height: min(60vw, 44vh);
+        border-radius: 32px;
+        background: linear-gradient(180deg, #fff1b8 0%, #ffd24d 100%);
+        border: 6px solid #fff;
+        box-shadow: 0 12px 0 rgba(120, 70, 0, 0.35), 0 18px 44px rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #7a5200;
+        font-weight: 900;
+        font-size: min(42vw, 32vh);
+        line-height: 1;
+        text-shadow: 0 3px 0 rgba(255, 255, 255, 0.6);
+        transform: scale(0.5);
+        opacity: 0;
+      }
+      .letter-reveal.in .letter-reveal-card {
+        animation: revealPop 0.32s cubic-bezier(0.34, 1.56, 0.5, 1) forwards;
+      }
+      .letter-reveal.out .letter-reveal-card {
+        animation: revealOut 0.25s ease forwards;
+      }
+      @keyframes revealPop {
+        0% { transform: scale(0.5); opacity: 0; }
+        70% { transform: scale(1.08); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes revealOut {
+        0% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(0.6); opacity: 0; }
+      }
+
+      /* ---------- Audio debug badge (only shown with ?debug=1) ---------- */
+      .audio-debug {
+        position: fixed;
+        left: 6px;
+        bottom: 6px;
+        z-index: 9999;
+        max-width: 96vw;
+        font: 600 11px/1.35 ui-monospace, Menlo, Consolas, monospace;
+        color: #eaffea;
+        background: rgba(0, 0, 0, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 8px;
+        padding: 4px 8px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        pointer-events: none;
+        display: none;
+      }
+      .audio-debug.on { display: block; }
+    </style>
+  </head>
+  <body>
+    <header class="app-bar">
+      <button class="btn icon ghost" id="homeBtn" aria-label="Home">⬅︎</button>
+      <h1>🦖 Dinosaur Racing</h1>
+      <div class="spacer"></div>
+      <div class="stat">🏆 <b id="score">0</b></div>
+      <button class="btn icon ghost" id="replayBtn" aria-label="Say it again">🔊</button>
+    </header>
+
+    <main class="stage no-select">
+      <div class="caller" id="caller" role="button" aria-label="Hear the letter again">
+        <div class="face" id="callerFace">🦖</div>
+        <div>
+          <div class="label" id="callerLabel">Listen! 🔊</div>
+          <div class="sub">Tap to hear the letter again</div>
+        </div>
+      </div>
+
+      <div class="race" id="race"></div>
+
+      <div class="overlay" id="overlay">
+        <div id="emojiRow">🦖🦕🏁</div>
+        <h2>Dinosaur Racing</h2>
+        <p>
+          Listen! A letter is called out. Tap the dinosaur whose letter you hear
+          and it runs forward. Get them to the finish line! Tap a wrong letter
+          and all the dinos go back to the start. Turn the iPad volume up.
+        </p>
+        <button class="btn primary" id="startBtn">Race!</button>
+      </div>
+    </main>
+
+    <div id="letterReveal" class="letter-reveal" aria-hidden="true">
+      <div class="letter-reveal-card"><span id="letterRevealGlyph">A</span></div>
+    </div>
+
+    <div id="audioDebug" class="audio-debug" aria-hidden="true"></div>
+
+    <script src="../js/common.js?v=20260607d"></script>
+    <script>
+      const GAME_ID = "dino-racing";
+      const LANES = 7;
+      const CELLS = 6; // squares per track; the top one is the finish
+      const WIN = CELLS - 1; // reach the top square to win
+
+      // base dino emojis + a hue shift so each racer is a different color
+      const DINO_STYLES = [
+        { e: "🦖", hue: 0, name: "Rex" },
+        { e: "🦕", hue: 45, name: "Sunny" },
+        { e: "🦖", hue: 95, name: "Fern" },
+        { e: "🦕", hue: 150, name: "Misty" },
+        { e: "🦖", hue: 205, name: "Sky" },
+        { e: "🦕", hue: 265, name: "Violet" },
+        { e: "🦖", hue: 315, name: "Rosie" },
+      ];
+      const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+      // Shared positive-reinforcement clips (audio/praise/), played on a correct
+      // letter tap. Keys must match the praise manifest + the generators.
+      const PRAISE_KEYS = ["praise_1", "praise_2", "praise_3", "praise_4", "praise_5"];
+      const PRAISE_TEXT = {
+        praise_1: "Great job!",
+        praise_2: "Way to go!",
+        praise_3: "You did it!",
+        praise_4: "Awesome work!",
+        praise_5: "Super star!",
+      };
+      let lastPraiseIdx = -1; // avoid immediate back-to-back repeats
+
+      const els = {
+        score: document.getElementById("score"),
+        race: document.getElementById("race"),
+        caller: document.getElementById("caller"),
+        callerFace: document.getElementById("callerFace"),
+        callerLabel: document.getElementById("callerLabel"),
+        overlay: document.getElementById("overlay"),
+        startBtn: document.getElementById("startBtn"),
+        homeBtn: document.getElementById("homeBtn"),
+        replayBtn: document.getElementById("replayBtn"),
+      };
+
+      let lanes = []; // {letter, progress, laneEl, dinoEl}
+      let target = "A";
+      let score = 0; // races won
+      let busy = false;
+      let started = false;
+
+      // ---------- Bind essential input FIRST ----------
+      // The Start tap and the Back button must be wired before any non-essential
+      // setup (audio/speech) that could throw — otherwise a single init exception
+      // would leave the whole page unresponsive (both controls dead). The handlers
+      // reference hoisted functions and state that's only used on interaction, so
+      // running this before the rest of init is safe.
+      if (els.startBtn) els.startBtn.addEventListener("click", startGame);
+      if (els.homeBtn) els.homeBtn.addEventListener("click", Arcade.goHome);
+      if (els.replayBtn)
+        els.replayBtn.addEventListener("click", () => started && sayLetter());
+      if (els.caller) Arcade.onTap(els.caller, () => started && sayLetter());
+      els.score.textContent = Arcade.getHighScore(GAME_ID);
+
+      // keep dinos centered in their squares if the screen rotates/resizes
+      let resizeT = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeT);
+        resizeT = setTimeout(() => started && positionAll(false), 150);
+      });
+
+      const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      // ---------- Speech (fallback only, when a pre-recorded clip is missing) ----------
+      // No user-facing picker: auto-pick a sensible default English voice.
+      let voice = null;
+      function pickDefaultVoice() {
+        if (!("speechSynthesis" in window)) return;
+        const all = speechSynthesis.getVoices() || [];
+        const en = all.filter((v) => /^en/i.test(v.lang));
+        voice =
+          en.find((v) => /premium|enhanced|neural|natural/i.test(v.name + v.voiceURI)) ||
+          en[0] ||
+          null;
+      }
+      try {
+        if ("speechSynthesis" in window) {
+          pickDefaultVoice();
+          speechSynthesis.onvoiceschanged = pickDefaultVoice;
+        }
+      } catch (e) {
+        /* speech is an optional fallback; never let it block init */
+      }
+      let speakClear = null;
+      // onEnd (optional) fires when the utterance finishes (or can't be spoken),
+      // so callers can sequence the next prompt after the speech fallback.
+      function speak(text, { rate = 0.85, pitch = 1.05, onEnd = null } = {}) {
+        if (!("speechSynthesis" in window)) {
+          if (onEnd) onEnd();
+          return;
+        }
+        try {
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          if (voice) {
+            u.voice = voice;
+            u.lang = voice.lang;
+          } else {
+            u.lang = "en-US";
+          }
+          u.rate = rate;
+          u.pitch = pitch;
+          u.volume = 1;
+          els.caller.classList.add("speaking");
+          u.onend = () => {
+            els.caller.classList.remove("speaking");
+            if (onEnd) onEnd();
+          };
+          clearTimeout(speakClear);
+          speakClear = setTimeout(() => els.caller.classList.remove("speaking"), 1600);
+          speechSynthesis.speak(u);
+        } catch (e) {
+          if (onEnd) onEnd();
+        }
+      }
+      // ---------- Pre-recorded audio (with speechSynthesis fallback) ----------
+      // Letters/prompts come from the shared letters library (../audio/letters/);
+      // praise clips from the shared praise library (../audio/praise/); win +
+      // back-to-start clips are game-specific (../audio/dino/). The bank merges
+      // all by key, so play("find_A")/play("praise_3") resolve from the shared
+      // libraries and play("win_rex") from the dino folder.
+      // Non-essential: wrapped so any failure here (a missing/old AudioBank API,
+      // a throwing Audio constructor, etc.) can never abort init and leave the
+      // Start/Back controls unbound. On failure the game falls back to speech.
+      let audioBank = null;
+      try {
+        audioBank = Arcade.AudioBank({
+          dirs: ["../audio/letters/", "../audio/praise/", "../audio/dino/"],
+        });
+        audioBank.load(); // safe if the manifest/files don't exist yet
+      } catch (e) {
+        audioBank = null;
+      }
+
+      // ---------- On-screen audio debug badge (only with ?debug=1) ----------
+      // We can't see iPad Safari's console, so surface the audio ground truth on
+      // screen: whether speech exists, whether the bank loaded, how many clips,
+      // the last announce() decision (CLIP vs SPEECH), and the last audio error.
+      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+      const dbg = (() => {
+        const el = document.getElementById("audioDebug");
+        let lastKey = "-";
+        let lastMode = "-";
+        function render() {
+          if (!DEBUG || !el) return;
+          const tts = "speechSynthesis" in window ? "y" : "n";
+          const bank = audioBank ? "y" : "n";
+          const loaded = audioBank ? (audioBank.loaded ? "y" : "n") : "-";
+          const size = audioBank ? audioBank.size : 0;
+          const ver = audioBank ? audioBank.version : "-";
+          const url = (audioBank && audioBank.lastUrl) || "-";
+          const code = audioBank && audioBank.lastErrorCode != null ? audioBank.lastErrorCode : "-";
+          const name = (audioBank && audioBank.lastErrorName) || "";
+          const err = (audioBank && audioBank.lastError) || "-";
+          el.textContent =
+            `tts:${tts} bank:${bank} loaded:${loaded} clips:${size} v:${ver}\n` +
+            `last:${lastMode} ${lastKey}\n` +
+            `url:${url}\n` +
+            `errCode:${code} ${name}\nerr:${err}`;
+        }
+        function note(key, mode) {
+          lastKey = key;
+          lastMode = mode;
+          render();
+        }
+        if (DEBUG && el) {
+          el.classList.add("on");
+          render();
+          setInterval(render, 700); // reflect async load + late errors
+        }
+        return { note, render };
+      })();
+
+      // Try the pre-recorded clip first; fall back to the spoken voice.
+      // Optional onDone fires exactly once when the audio finishes — via the
+      // clip's onended, the speech fallback's utterance end, or a safety timeout
+      // — so callers can sequence the NEXT prompt without overlapping the single
+      // shared audio element. The `fallback` receives onDone so the speech path
+      // can wire it to the utterance's onend.
+      function announce(key, fallback, onDone) {
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          if (onDone) onDone();
+        };
+        const done = () => els.caller.classList.remove("speaking");
+        let safety = null;
+        if (
+          audioBank &&
+          audioBank.play(key, () => {
+            done();
+            clearTimeout(safety);
+            finish();
+          })
+        ) {
+          els.caller.classList.add("speaking");
+          clearTimeout(speakClear);
+          speakClear = setTimeout(done, 2500); // visual safety if 'ended' never fires
+          if (onDone) safety = setTimeout(finish, 1500); // never stall the next prompt
+          dbg.note(key, "CLIP");
+          return true;
+        }
+        fallback(finish); // speech path: fallback should pass finish as onEnd
+        if (onDone) safety = setTimeout(finish, 1500);
+        dbg.note(key, "SPEECH");
+        return false;
+      }
+
+      function sayTarget() {
+        announce("find_" + target, () =>
+          speak("Find Letter " + target, { rate: 0.5, pitch: 1.05 })
+        );
+      }
+      function sayLetter() {
+        announce("letter_" + target, () => speak(target, { rate: 0.5, pitch: 1.05 }));
+      }
+      // Play a random praise clip (clip-first, speech-fallback). `onDone` runs
+      // after it finishes so the next letter prompt never overlaps the single
+      // shared audio element.
+      function sayPraise(onDone) {
+        let i = randInt(0, PRAISE_KEYS.length - 1);
+        if (PRAISE_KEYS.length > 1 && i === lastPraiseIdx) {
+          i = (i + 1) % PRAISE_KEYS.length;
+        }
+        lastPraiseIdx = i;
+        const key = PRAISE_KEYS[i];
+        announce(
+          key,
+          (onEnd) => speak(PRAISE_TEXT[key], { rate: 0.8, pitch: 1.2, onEnd }),
+          onDone
+        );
+      }
+
+      // ---------- Celebration ----------
+      function celebrateAt(cx, cy, emojis, count) {
+        for (let i = 0; i < count; i++) {
+          const s = document.createElement("div");
+          s.className = "pop-emoji";
+          s.textContent = emojis[i % emojis.length];
+          s.style.left = cx + "px";
+          s.style.top = cy + "px";
+          s.style.setProperty("--dx", randInt(-80, 80) + "px");
+          document.body.appendChild(s);
+          setTimeout(() => s.remove(), 1050);
+        }
+      }
+
+      // Big centered letter reveal on a correct tap: pop in, hold ~1s, pop out,
+      // then call onHidden(). Self-contained; safe if the elements are missing.
+      const revealEl = document.getElementById("letterReveal");
+      const revealGlyph = document.getElementById("letterRevealGlyph");
+      let revealTimers = [];
+      function revealLetter(letter, onHidden) {
+        if (!revealEl || !revealGlyph) {
+          if (onHidden) onHidden();
+          return;
+        }
+        revealTimers.forEach(clearTimeout);
+        revealTimers = [];
+        revealGlyph.textContent = letter;
+        revealEl.classList.remove("out");
+        revealEl.classList.add("show", "in");
+        const IN = 320;
+        const HOLD = 1000;
+        const OUT = 250;
+        revealTimers.push(
+          setTimeout(() => {
+            revealEl.classList.remove("in");
+            revealEl.classList.add("out");
+          }, IN + HOLD)
+        );
+        revealTimers.push(
+          setTimeout(() => {
+            revealEl.classList.remove("show", "out");
+            if (onHidden) onHidden();
+          }, IN + HOLD + OUT)
+        );
+      }
+
+      // Falling confetti for a fixed duration (used when the next round starts).
+      const CONFETTI = ["🎉", "🎊", "⭐", "✨", "🦖", "🦕", "🏆", "💚", "💛", "🧡"];
+      let confettiTimer = null;
+      function spawnConfettiPiece() {
+        const c = document.createElement("div");
+        c.className = "confetti";
+        c.textContent = CONFETTI[randInt(0, CONFETTI.length - 1)];
+        c.style.left = randInt(0, Math.max(0, window.innerWidth - 24)) + "px";
+        c.style.setProperty("--dur", (1.8 + Math.random() * 1.4).toFixed(2) + "s");
+        c.style.fontSize = randInt(20, 34) + "px";
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 3600);
+      }
+      function runConfetti(ms) {
+        const end = Date.now() + ms;
+        clearInterval(confettiTimer);
+        confettiTimer = setInterval(() => {
+          if (Date.now() >= end) {
+            clearInterval(confettiTimer);
+            confettiTimer = null;
+            return;
+          }
+          for (let i = 0; i < 6; i++) spawnConfettiPiece();
+        }, 140);
+      }
+
+      // ---------- Build & position the race ----------
+      // Centre the dino inside the square at its current progress (never on a line).
+      function positionDino(lane, animate) {
+        const cell = lane.cells[lane.progress];
+        if (!cell) return;
+        const top = cell.offsetTop + cell.offsetHeight / 2; // px within the track
+        if (!animate) lane.dinoEl.style.transition = "none";
+        lane.dinoEl.style.top = top + "px";
+        if (!animate) {
+          void lane.dinoEl.offsetWidth;
+          lane.dinoEl.style.transition = "";
+        }
+      }
+      function positionAll(animate) {
+        lanes.forEach((l) => positionDino(l, animate));
+      }
+      function buildRace() {
+        const letters = shuffle(ALPHABET.slice()).slice(0, LANES).sort();
+        const styles = shuffle(DINO_STYLES.slice());
+        els.race.innerHTML = "";
+        lanes = letters.map((letter, i) => {
+          const laneEl = document.createElement("div");
+          laneEl.className = "lane";
+
+          const track = document.createElement("div");
+          track.className = "track";
+
+          // squares from bottom (0) to top (CELLS-1 = finish). column-reverse
+          // means the first DOM child renders at the bottom.
+          const cells = [];
+          for (let c = 0; c < CELLS; c++) {
+            const cell = document.createElement("div");
+            cell.className = "cell" + (c === WIN ? " finish" : "");
+            track.appendChild(cell);
+            cells.push(cell);
+          }
+
+          const dino = document.createElement("div");
+          dino.className = "dino";
+          dino.textContent = styles[i].e;
+          dino.style.filter = "saturate(1.3) hue-rotate(" + styles[i].hue + "deg)";
+
+          const crown = document.createElement("div");
+          crown.className = "crown";
+          crown.textContent = "👑";
+          dino.appendChild(crown);
+          track.appendChild(dino);
+
+          const card = document.createElement("div");
+          card.className = "card";
+          card.textContent = letter;
+          card.dataset.letter = letter;
+
+          laneEl.appendChild(track);
+          laneEl.appendChild(card);
+          els.race.appendChild(laneEl);
+
+          const lane = { letter, progress: 0, laneEl, dinoEl: dino, cells, cardEl: card, dinoName: styles[i].name };
+          Arcade.onTap(laneEl, () => choose(lane));
+          return lane;
+        });
+        // wait for layout, then drop each dino into its starting square
+        requestAnimationFrame(() => positionAll(false));
+      }
+
+      function resetPositions() {
+        lanes.forEach((l) => {
+          l.progress = 0;
+          l.laneEl.classList.remove("win");
+          positionDino(l, true);
+        });
+      }
+
+      // Quickly reorder only the letter cards between columns (dinos stay put).
+      function shuffleLetters() {
+        if (lanes.length < 2) return;
+        const cards = lanes.map((l) => l.cardEl);
+        const firstLeft = new Map();
+        cards.forEach((c) => firstLeft.set(c, c.getBoundingClientRect().left));
+        const shuffled = shuffle(cards.slice());
+        // drop each shuffled card into a lane, and let the lane adopt its letter
+        lanes.forEach((l, i) => {
+          const card = shuffled[i];
+          l.laneEl.appendChild(card); // moves card to this column's bottom
+          l.cardEl = card;
+          l.letter = card.dataset.letter;
+        });
+        // FLIP: jump each card back to its old x, then slide to the new one
+        lanes.forEach((l) => {
+          const dx = firstLeft.get(l.cardEl) - l.cardEl.getBoundingClientRect().left;
+          l.cardEl.style.transition = "none";
+          l.cardEl.style.transform = "translateX(" + dx + "px)";
+        });
+        void els.race.offsetWidth; // flush
+        lanes.forEach((l) => {
+          l.cardEl.style.transition = "transform 0.25s ease";
+          l.cardEl.style.transform = "";
+        });
+      }
+
+      function pickTarget() {
+        target = lanes[randInt(0, lanes.length - 1)].letter;
+      }
+
+      function newRound() {
+        busy = false;
+        pickTarget();
+        els.callerLabel.textContent = "Listen! 🔊";
+        sayTarget();
+      }
+
+      function advance(lane) {
+        lane.progress++;
+        positionDino(lane, true);
+        lane.dinoEl.classList.remove("run");
+        void lane.dinoEl.offsetWidth;
+        lane.dinoEl.classList.add("run");
+        const r = lane.dinoEl.getBoundingClientRect();
+        celebrateAt(r.left + r.width / 2, r.top, ["✨", "💨", "⭐"], 4);
+        if (lane.progress >= WIN) winRace(lane);
+      }
+
+      function winRace(lane) {
+        busy = true;
+        lane.laneEl.classList.add("win");
+        score++;
+        els.score.textContent = score;
+        Arcade.setHighScore(GAME_ID, score);
+        const r = lane.dinoEl.getBoundingClientRect();
+        celebrateAt(r.left + r.width / 2, r.top, ["🏆", "🎉", "⭐", "🦖", "🎊"], 14);
+        els.callerLabel.textContent = "🏆 " + lane.dinoName + " wins!";
+        announce("win_" + lane.dinoName.toLowerCase(), () =>
+          speak(lane.dinoName + " wins the race! Hooray!", { rate: 0.72, pitch: 1.15 })
+        );
+        setTimeout(() => {
+          buildRace();
+          newRound();
+          runConfetti(3000); // 3 seconds of confetti once the next round starts
+        }, 2400);
+      }
+
+      function choose(lane) {
+        if (busy || !started) return;
+        busy = true; // lock out double-taps until the next prompt
+        if (lane.letter === target) {
+          Arcade.buzz(20);
+          const won = target; // the letter to showcase (current target)
+          advance(lane); // winRace (if it triggers) keeps busy = true
+          if (lane.progress < WIN) {
+            els.callerLabel.textContent = "Great! 🌟";
+            // Celebrate: pop the big letter up while a random praise clip plays.
+            // Defer shuffle + the next prompt until BOTH the ~1s reveal hold AND
+            // the praise audio have finished. busy stays true the whole time so
+            // taps are locked; newRound() fires exactly once (guarded), with a
+            // safety timeout so it can never stall.
+            let advanced = false;
+            let remaining = 2; // [reveal hidden, praise ended]
+            const nextRound = () => {
+              if (advanced) return;
+              advanced = true;
+              clearTimeout(revealSafety);
+              shuffleLetters();
+              if (started) newRound(); // clears busy
+            };
+            const step = () => {
+              if (!advanced && --remaining <= 0) nextRound();
+            };
+            const revealSafety = setTimeout(nextRound, 3000); // never stall
+            revealLetter(won, step); // pop in / hold ~1s / out -> step()
+            sayPraise(step); // praise audio -> step()
+          }
+        } else {
+          Arcade.buzz(60);
+          lane.laneEl.classList.add("bad");
+          setTimeout(() => lane.laneEl.classList.remove("bad"), 420);
+          els.callerLabel.textContent = "Oops! Everyone back to start!";
+          announce("back_to_start", () =>
+            speak("Oh no! Back to start!", { rate: 0.72, pitch: 1.0 })
+          );
+          resetPositions();
+          shuffleLetters();
+          setTimeout(() => {
+            els.callerLabel.textContent = "Listen! 🔊";
+            sayTarget();
+            busy = false;
+          }, 1700);
+        }
+      }
+
+      // ---------- Controls ----------
+      function startGame() {
+        started = true;
+        score = 0;
+        els.score.textContent = score;
+        els.overlay.classList.add("hidden");
+        if (audioBank) audioBank.unlock(); // iOS: prime clips inside the user gesture
+        buildRace();
+        newRound();
+      }
+
+    </script>
+  </body>
+</html>

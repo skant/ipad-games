@@ -28,6 +28,22 @@ const GAMES = [
     glow: "rgba(69,217,122,0.4)",
     path: "games/turtle-numbers.html",
   },
+  {
+    id: "turtle-fighting",
+    title: "Turtle Fighting",
+    desc: "Hear a letter, KO the ninja that holds it (ages 3+)",
+    emoji: "🥷",
+    glow: "rgba(122,75,208,0.45)",
+    path: "games/turtle-fighting.html",
+  },
+  {
+    id: "dino-racing",
+    title: "Dinosaur Racing",
+    desc: "Hear a letter, race the matching dino to the finish (ages 3+)",
+    emoji: "🦖",
+    glow: "rgba(226,59,46,0.45)",
+    path: "games/dino-racing.html",
+  },
 
   // Add more games below. Copy games/_template.html, then add an entry here:
   //
